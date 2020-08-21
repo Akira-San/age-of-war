@@ -15,7 +15,7 @@ module.exports = {
     "no-console": process.env.NODE_ENV === "production" ? "warn" : "off",
     "no-debugger": process.env.NODE_ENV === "production" ? "warn" : "off",
     "prettier/prettier": [
-      "warn",
+      "off",
       {
         trailingComma: "es5", //在代码尾部添加逗号
       },
