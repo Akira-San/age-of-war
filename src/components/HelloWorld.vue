@@ -2,20 +2,25 @@
   <v-container>
     <v-sheet class="mx-auto" elevation="8" max-width="820">
       <v-slide-group
-        v-model="model"
+        multiple
+        v-model="activeTroops"
         class="pa-1"
         transition="scroll-x-reverse-transition"
       >
-        <v-slide-item v-for="(troop, index) in myTroops" :key="index">
+        <v-slide-item
+          v-for="(troop, index) in myTroops"
+          :key="index"
+          v-slot:default="{ active, toggle }"
+        >
           <v-fab-transition>
             <v-card
               color="amber lighten-5"
-              :class="`elevation-${activeTroops.indexOf(index) >= 0 ? 12 : 2}`"
+              :class="`elevation-${active ? 12 : 2}`"
               class="ma-2 pa-2"
               height="200"
               width="100"
               :ripple="false"
-              @click="troopSelect(index)"
+              @click="toggle"
             >
               <v-row
                 class="fill-height d-flex pa-2 flex-column justify-space-around align-center"
@@ -25,7 +30,7 @@
                   :key="item"
                   :color="troop.color"
                   v-text="troop.icon"
-                  :size="activeTroops.indexOf(index) >= 0 ? 35 : 25"
+                  :size="active ? 35 : 25"
                 ></v-icon>
               </v-row>
             </v-card>
@@ -43,71 +48,153 @@
         <v-icon>mdi-cards-playing-outline</v-icon>
       </v-btn>
     </v-sheet>
-    <v-item-group multiple>
+    <v-item-group v-model="castleSelected">
       <v-container>
         <v-row class="d-flex">
           <div
-            v-for="(castle, index) in castles"
-            :key="index"
+            v-for="(castle, castleIndex) in castles"
+            :key="castleIndex"
             class="pa-2 castle"
           >
-            <v-item>
-              <v-hover>
-                <template v-slot="{ hover }">
-                  <v-card
-                    :color="castle.color"
-                    class="elevation-12"
-                    :class="`elevation-${hover ? 12 : 2}`"
-                    height="200"
-                    width="200"
+            <v-item v-slot:default="{ active, toggle }">
+              <v-card
+                :color="active ? castle.color.split(' ')[0] : castle.color"
+                height="200"
+                width="200"
+              >
+                <v-img
+                  src="../assets/streamline-icon-landmark-japan-castle-l2@140x140.png"
+                >
+                  <div
+                    class="castle_info"
+                    @click="toggle"
+                    :class="active ? 'active' : ''"
                   >
-                    <v-img
-                      src="../assets/streamline-icon-landmark-japan-castle-l2@140x140.png"
+                    <h1 class="ma-1 text-center">{{ castle.score }}</h1>
+                    <h3 class="ma-1 text-center">{{ castle.name }}</h3>
+                  </div>
+                  <div class="castle_btns">
+                    <div
+                      class="castle_btns_row"
+                      v-for="(items, index) in castle.troopsNeeded"
+                      :key="index"
                     >
-                      <div class="castle_info">
-                        <h1 class="ma-1 text-center">{{ castle.score }}</h1>
-                        <h3 class="ma-1 text-center">{{ castle.name }}</h3>
-                      </div>
-                      <div class="castle_btns">
-                        <div
-                          class="castle_btns_row"
-                          v-for="(items, index) in castle.troopsNeeded"
-                          :key="index"
+                      <div
+                        :class="['castle_btn', { ok: item.ok }]"
+                        v-for="(item, index) in items"
+                        :key="index"
+                      >
+                        <v-btn
+                          @click="placeTroops(items, castle.troopsNeeded)"
+                          tile
+                          min-width="0"
+                          :width="item.num > 1 ? '84' : '36'"
+                          height="36"
+                          elevation="2"
+                          :disabled="castleIndex != castleSelected"
+                          :color="
+                            item.ok
+                              ? findTroopType(item.type).color
+                              : 'amber lighten-5'
+                          "
                         >
-                          <div
-                            v-for="(item, index) in items"
-                            :key="index"
-                            v-ripple
-                            :class="[
-                              'castle_btn elevation-2',
-                              { ' big': item.match(/\d/) },
-                            ]"
+                          <v-icon
+                            size="40"
+                            v-if="item.num > 1"
+                            class="mr-2"
+                            :color="
+                              item.ok ? 'white' : findTroopType(item.type).color
+                            "
+                            >{{ "mdi-numeric-" + item.num }}</v-icon
                           >
-                            <v-icon
-                              size="40"
-                              v-if="item.match(/^\d/)"
-                              color="indigo darken-3 "
-                              >{{ "mdi-numeric-" + item[0] }}</v-icon
-                            >
-                            <v-icon
-                              :color="
-                                troopsNeededShow(item)
-                                  ? troopsNeededShow(item).color
-                                  : ''
-                              "
-                              >{{
-                                troopsNeededShow(item)
-                                  ? troopsNeededShow(item).icon
-                                  : ""
-                              }}</v-icon
-                            >
-                          </div>
-                        </div>
+                          <v-icon
+                            :color="
+                              item.ok ? 'white' : findTroopType(item.type).color
+                            "
+                            >{{ findTroopType(item.type).icon }}</v-icon
+                          >
+                        </v-btn>
                       </div>
-                    </v-img>
-                  </v-card>
-                </template>
-              </v-hover>
+                    </div>
+                  </div>
+                </v-img>
+              </v-card>
+            </v-item>
+          </div>
+        </v-row>
+      </v-container>
+    </v-item-group>
+    <v-item-group v-model="myCastleSelected">
+      <v-container>
+        <v-row class="d-flex">
+          <div
+            v-for="(castle, castleIndex) in myCastles"
+            :key="castleIndex"
+            class="pa-2 castle"
+          >
+            <v-item v-slot:default="{ active, toggle }">
+              <v-card
+                :color="active ? castle.color.split(' ')[0] : castle.color"
+                height="200"
+                width="200"
+              >
+                <v-img
+                  src="../assets/streamline-icon-landmark-japan-castle-l2@140x140.png"
+                >
+                  <div
+                    class="castle_info"
+                    @click="toggle"
+                    :class="active ? 'active' : ''"
+                  >
+                    <h1 class="ma-1 text-center">{{ castle.score }}</h1>
+                    <h3 class="ma-1 text-center">{{ castle.name }}</h3>
+                  </div>
+                  <div class="castle_btns">
+                    <div
+                      class="castle_btns_row"
+                      v-for="(items, index) in castle.troopsNeeded"
+                      :key="index"
+                    >
+                      <div
+                        :class="['castle_btn', { ok: item.ok }]"
+                        v-for="(item, index) in items"
+                        :key="index"
+                      >
+                        <v-btn
+                          @click="placeTroops(items)"
+                          tile
+                          min-width="0"
+                          :width="item.num > 1 ? '84' : '36'"
+                          height="36"
+                          elevation="2"
+                          :disabled="castleIndex != castleSelected"
+                          :color="
+                            item.ok
+                              ? findTroopType(item.type).color
+                              : 'amber lighten-5'
+                          "
+                        >
+                          <v-icon
+                            size="40"
+                            v-if="item.num > 1"
+                            class="mr-2"
+                            :color="
+                              item.ok ? 'white' : findTroopType(item.type).color
+                            "
+                            >{{ "mdi-numeric-" + item.num }}</v-icon
+                          >
+                          <v-icon
+                            :color="
+                              item.ok ? 'white' : findTroopType(item.type).color
+                            "
+                            >{{ findTroopType(item.type).icon }}</v-icon
+                          >
+                        </v-btn>
+                      </div>
+                    </div>
+                  </div>
+                </v-img>
+              </v-card>
             </v-item>
           </div>
         </v-row>
@@ -120,14 +207,17 @@
 export default {
   data: () => ({
     loading: false,
+    canCastleSelect: true,
     myTroops: [],
     activeTroops: [],
     myTroopsNum: 7,
+    castleSelected: -1,
+    myCastleSelected: -1,
     myCastles: [],
-    enemyTroops: [],
-    enemyCastles: [],
+    // enemyTroops: [],
+    // enemyCastles: [],
     castles: [],
-    model: [],
+    placedTroops: [],
     troopTypes: [
       {
         id: 0,
@@ -180,7 +270,14 @@ export default {
         score: 3,
         color: "purple lighten-5",
         img: "../assets/streamline-icon-landmark-japan-castle-l2@140x140.png",
-        troopsNeeded: [["general"], ["cavalry", "archer"], ["6warrior"]],
+        troopsNeeded: [
+          [{ type: "general", num: 1 }],
+          [
+            { type: "cavalry", num: 1 },
+            { type: "archer", num: 1 },
+          ],
+          [{ type: "warrior", num: 6 }],
+        ],
       },
       {
         id: 0,
@@ -189,7 +286,14 @@ export default {
         score: 4,
         color: "green lighten-5",
         img: "../assets/streamline-icon-landmark-japan-castle-l2@140x140.png",
-        troopsNeeded: [["general", "general"], ["archer"], ["cavalry"]],
+        troopsNeeded: [
+          [
+            { type: "general", num: 1 },
+            { type: "general", num: 1 },
+          ],
+          [{ type: "archer", num: 1 }],
+          [{ type: "cavalry", num: 1 }],
+        ],
       },
       {
         id: 0,
@@ -198,15 +302,21 @@ export default {
         score: 2,
         color: "red lighten-5",
         img: "../assets/streamline-icon-landmark-japan-castle-l2@140x140.png",
-        troopsNeeded: [["cavalry", "cavalry"], ["5warrior"], ["2warrior"]],
+        troopsNeeded: [
+          [
+            { type: "cavalry", num: 1 },
+            { type: "cavalry", num: 1 },
+          ],
+          [{ type: "warrior", num: 5 }],
+          [{ type: "warrior", num: 2 }],
+        ],
       },
     ],
   }),
   computed: {
-    troopsNeededShow() {
-      return function(item) {
-        let q = item.replace(/\d+/, "");
-        return this.troopTypes.filter(p => p.type == q)[0];
+    findTroopType() {
+      return function(val) {
+        return this.troopTypes.filter(p => p.type == val)[0];
       };
     },
   },
@@ -224,17 +334,53 @@ export default {
         if (count >= this.myTroopsNum) {
           clearInterval(generator);
           this.loading = false;
-          this.canUpdate = false;
         }
       }, 300);
     },
-    troopSelect(res) {
-      if (this.activeTroops.indexOf(res) >= 0)
-        this.activeTroops.splice(this.activeTroops.indexOf(res), 1);
-      else this.activeTroops.push(res);
-      console.log(this.activeTroops);
+    placeTroops(row, all) {
+      let targets = row.map(o => ({ ...o }));
+      let temp = [];
+      targets.map(target => {
+        for (let i = 0; i < this.activeTroops.length; i++) {
+          if (
+            target.type == this.myTroops[this.activeTroops[i]].type &&
+            target.num > 0
+          ) {
+            target.num -= this.myTroops[this.activeTroops[i]].num;
+            temp.push(this.activeTroops[i]);
+            this.activeTroops.splice(i, 1);
+            i--;
+          }
+        }
+      });
+
+      if (targets.every(val => val.num < 1)) {
+        let tempSort = temp.sort((a, b) => b - a);
+        console.log(tempSort);
+        row.map(item => {
+          return (item.ok = true);
+        });
+        tempSort.map(item => {
+          this.myTroops.splice(item, 1);
+        });
+        this.myTroopsNum -= temp.length - 1;
+        this.troopsGenerator();
+      }
+
+      if (all.every(items => items.every(item => item.ok))) {
+        this.myCastles.push(this.castles.splice(this.castleSelected, 1));
+      }
+      while (this.activeTroops.length > 0) {
+        this.activeTroops.pop();
+      }
+    },
+    castleSelect(index) {
+      if (index === this.castleSelected) return (this.castleSelected = "");
+      this.castleSelected = index;
+      console.log(this.castleSelected);
     },
   },
+
   mounted() {
     this.loading = true;
     this.myTroops.length = 0;
@@ -247,7 +393,6 @@ export default {
       if (count >= this.myTroopsNum) {
         clearInterval(generator);
         this.loading = false;
-        this.canUpdate = false;
       }
     }, 200);
 
@@ -264,6 +409,10 @@ export default {
   position: absolute;
   bottom: 0;
   z-index: 1;
+  cursor: pointer;
+  &.active {
+    color: #ffffff;
+  }
 }
 .castle_btns {
   position: absolute;
@@ -279,19 +428,16 @@ export default {
   z-index: 3;
 }
 .castle_btn {
-  width: 50px;
-  height: 50px;
-  background: #fff8e1;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
   border: 2px solid #8d6e63;
-  cursor: pointer;
   margin: 8px 8px 0 0;
-  &.big {
-    width: 108px;
-    padding-right: 4px;
+  background: #ffffff;
+  &.ok {
+    border: 2px solid #ffc107;
   }
+}
+.v-btn {
+  min-width: 36px;
+  width: 36px;
 }
 .back_icon {
   position: absolute;
