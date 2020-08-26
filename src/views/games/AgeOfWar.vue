@@ -1,6 +1,6 @@
 <template>
   <v-container>
-    <v-sheet class="mx-auto mb-8" elevation="8" max-width="820">
+    <v-sheet class="mx-auto mb-8 cards" elevation="8" max-width="820">
       <v-slide-group
         multiple
         v-model="activeTroops"
@@ -37,27 +37,29 @@
           </v-fab-transition>
         </v-slide-item>
       </v-slide-group>
-      <v-btn
-        :loading="loading"
-        :disabled="loading || myTroopsNum <= 1"
-        color="primary"
-        class="ma-2 white--text"
-        fab
-        @click="troopsGenerator(myTroopsNum)"
-      >
-        <v-icon>mdi-cards-playing-outline</v-icon>
-      </v-btn>
-      <v-btn
-        :loading="loading"
-        :disabled="loading"
-        color="error"
-        class="ma-2 white--text"
-        fab
-        @click="stepGenerator()"
-      >
-        <v-icon>mdi-arrow-right-bold-outline</v-icon>
-      </v-btn>
-      <h2 class="float-right ma-5">共 {{ step }} 步</h2>
+      <div class="btns">
+        <v-btn
+          :loading="loading"
+          :disabled="loading || myTroopsNum <= 1"
+          color="primary"
+          class="ma-2 white--text"
+          fab
+          @click="troopsGenerator(myTroopsNum)"
+        >
+          <v-icon>mdi-cards-playing-outline</v-icon>
+        </v-btn>
+        <v-btn
+          :loading="loading"
+          :disabled="loading"
+          color="error"
+          class="ma-2 white--text"
+          fab
+          @click="stepGenerator({ next: true })"
+        >
+          <v-icon>mdi-arrow-right-bold-outline</v-icon>
+        </v-btn>
+        <h2 class="float-right ma-5">共 {{ step }} 步</h2>
+      </div>
     </v-sheet>
 
     <v-sheet class="mx-auto mb-8" elevation="8">
@@ -149,7 +151,7 @@
       </v-slide-group>
     </v-sheet>
 
-    <v-sheet class="mx-auto mb-8" elevation="8">
+    <v-sheet class="mx-auto mb-8" elevation="8" v-if="myCastles.length > 0">
       <v-slide-group>
         <v-row class="d-flex py-2 px-5">
           <div
@@ -238,12 +240,16 @@
       </v-slide-group>
     </v-sheet>
 
-    <v-snackbar v-model="snackbar" timeout="2000" top color="warning">
+    <v-snackbar v-model="snackbar" timeout="2000" top color="warning" outlined>
       {{ text }}
-
       <template v-slot:action="{ attrs }">
-        <v-btn color="blue" text v-bind="attrs" @click="snackbar = false">
-          Close
+        <v-btn
+          color="orange lighten-2"
+          icon
+          v-bind="attrs"
+          @click="snackbar = false"
+        >
+          <v-icon>mdi-close</v-icon>
         </v-btn>
       </template>
     </v-snackbar>
@@ -252,6 +258,7 @@
 
 <script>
 export default {
+  name: "AgeOfWar",
   data: () => ({
     loading: false,
     canCastleSelect: true,
@@ -265,6 +272,8 @@ export default {
     // enemyCastles: [],
     pubCastles: [],
     placedTroops: [],
+    snackbar: false,
+    text: "",
     troopTypes: [
       {
         id: 0,
@@ -635,34 +644,25 @@ export default {
     },
     castleSelect(id) {
       //城池选择
-      this.castleSelected = id;
-      this.stepGenerator();
-
-      this.castleTypes.map(family => {
-        family.familyCastles.map((castle, i) => {
-          if (castle.id == this.castleSelected) {
-            this.castleSelected = -1;
-            let x = { ...family };
-            family.familyCastles.splice(i, 1);
-            x.familyCastles = [castle];
-            if (this.myCastles.filter(q => q.family === x.family).length < 1)
-              return this.myCastles.push(x);
-            else
-              return this.myCastles.map(p => {
-                if (p.family === x.family) return p.familyCastles.push(castle);
-              });
-          }
-        });
-      });
+      if (this.castleSelected < 0) {
+        this.castleSelected = id;
+        this.stepGenerator();
+      } else {
+        this.snackbar = true;
+        this.text = "选定攻击目标后无法改变";
+      }
     },
-    stepGenerator() {
+    stepGenerator(next) {
       //下一步生成
+      if (next) {
+        this.castleSelected = -1;
+        this.step++;
+      }
       this.loading = true;
       this.myTroopsNum = 7;
       this.myTroops.length = 0;
       let count = 0;
       this.activeTroops.length = 0;
-      this.step++;
 
       let generator = setInterval(() => {
         this.myTroops.push(this.troopTypes[Math.floor(Math.random() * 6)]);
@@ -714,10 +714,6 @@ export default {
   &.ok {
     border: 2px solid #ffc107;
   }
-}
-.v-btn {
-  min-width: 36px;
-  width: 36px;
 }
 .back_icon {
   position: absolute;
