@@ -1,4 +1,5 @@
-战国时代桌游
+# Age-of-War
+一个网页端战国时代桌游
 
 ## Project setup
 
