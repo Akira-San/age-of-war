@@ -10,9 +10,9 @@
       <h4 class="mb-4">
         开始玩: <router-link to="/games/age_of_war"> 战国时代</router-link>
       </h4>
-      <div class="d-flex">
-        <h3>目前规则:</h3>
-        <span>最少步数获取所有城池</span>
+      <div class="d-flex align-center">
+        <h3>目前规则:&nbsp;</h3>
+        <span>规定步数内，获得尽可能多的分数</span>
       </div>
     </div>
   </v-container>

@@ -40,30 +40,36 @@
       <div class="btns">
         <v-btn
           :loading="loading"
-          :disabled="loading || myTroopsNum <= 1"
+          :disabled="loading || myTroopsNum <= 1 || step > totalStep"
           color="primary"
           class="ma-2 white--text"
           fab
-          @click="troopsGenerator(myTroopsNum)"
+          @click="troopsGenerator(myTroopsNum--)"
         >
           <v-icon>mdi-cards-playing-outline</v-icon>
         </v-btn>
         <v-btn
           :loading="loading"
-          :disabled="loading"
+          :disabled="loading || step > totalStep"
           color="error"
           class="ma-2 white--text"
           fab
-          @click="stepGenerator({ next: true })"
+          @click="stepGenerator()"
         >
           <v-icon>mdi-arrow-right-bold-outline</v-icon>
         </v-btn>
-        <h2 class="float-right ma-5">共 {{ step }} 步</h2>
+        <h2 class="float-right ma-5">第{{ step }}步 共{{ totalStep }}步</h2>
       </div>
     </v-sheet>
 
     <v-sheet class="mx-auto mb-8" elevation="8">
-      <v-slide-group>
+      <h1
+        v-if="pubCastles.length <= 0 || step > totalStep"
+        class="font-weight-bold display-3 basil--text pa-8"
+      >
+        游戏结束 共{{ step - 1 }}步 总分:{{ totalScore }}
+      </h1>
+      <v-slide-group v-else>
         <v-row class="d-flex py-2 px-5">
           <div
             class="castles"
@@ -177,7 +183,6 @@
                   <v-img src="@/assets/castle-default.png">
                     <div
                       class="castle_info"
-                      @click="castleSelect(castle.id)"
                       :class="castle.id === castleSelected ? 'active' : ''"
                     >
                       <h1 class="ma-1 text-center">{{ castle.score }}</h1>
@@ -195,13 +200,11 @@
                           :key="index"
                         >
                           <v-btn
-                            @click="placeTroops(items, castle.troopsNeeded)"
                             tile
                             min-width="0"
                             :width="item.num > 1 ? '84' : '36'"
                             height="36"
                             elevation="2"
-                            :disabled="castle.id !== castleSelected"
                             :color="
                               item.ok
                                 ? findTroopType(item.type).color
@@ -266,6 +269,7 @@ export default {
     activeTroops: [],
     myTroopsNum: 7,
     castleSelected: -1,
+    totalStep: 5,
     myCastles: [],
     step: 0,
     // enemyTroops: [],
@@ -323,6 +327,7 @@ export default {
         family: "shimazu",
         familyScore: 3,
         color: "green lighten-5",
+        total: 1,
         familyCastles: [
           {
             id: 1,
@@ -344,8 +349,9 @@ export default {
       },
       {
         family: "chousokabe",
-        familyscore: 4,
+        familyScore: 4,
         color: "brown lighten-5",
+        total: 2,
         familyCastles: [
           {
             id: 2,
@@ -377,8 +383,9 @@ export default {
       },
       {
         family: "mouri",
-        familyscore: 5,
+        familyScore: 5,
         color: "red lighten-5",
+        total: 2,
         familyCastles: [
           {
             id: 4,
@@ -410,8 +417,9 @@ export default {
       },
       {
         family: "uesugi",
-        familyscore: 8,
+        familyScore: 8,
         color: "purple lighten-5",
+        total: 2,
         familyCastles: [
           {
             id: 6,
@@ -449,8 +457,9 @@ export default {
       },
       {
         family: "tokugawa",
-        familyscore: 8,
+        familyScore: 8,
         color: "grey lighten-5",
+        total: 3,
         familyCastles: [
           {
             id: 8,
@@ -501,8 +510,9 @@ export default {
       },
       {
         family: "oda",
-        familyscore: 10,
+        familyScore: 10,
         color: "yellow lighten-5",
+        total: 4,
         familyCastles: [
           {
             id: 11,
@@ -562,12 +572,24 @@ export default {
         return this.troopTypes.filter(p => p.type == val)[0];
       };
     },
+    totalScore() {
+      let totalScore = 0;
+      this.myCastles.map(family => {
+        if (family.familyCastles.length === family.total)
+          totalScore += family.familyScore;
+        else {
+          family.familyCastles.map(castle => {
+            totalScore += castle.score;
+          });
+        }
+      });
+      return totalScore;
+    },
   },
   methods: {
     troopsGenerator() {
       //生成卡牌
       this.loading = true;
-      this.myTroopsNum--;
       this.myTroops.length = 0;
       let count = 0;
       this.activeTroops.length = 0;
@@ -579,7 +601,7 @@ export default {
           clearInterval(generator);
           this.loading = false;
         }
-      }, 300);
+      }, 200);
     },
     placeTroops(row, all) {
       //放置卡牌
@@ -605,7 +627,6 @@ export default {
       //行符合条件后
       if (targets.every(val => val.num < 1)) {
         let tempSort = temp.sort((a, b) => b - a);
-        console.log(tempSort);
         row.map(item => {
           return (item.ok = true);
         });
@@ -618,7 +639,7 @@ export default {
 
       //城符合条件后，加入我方城池
       if (all.every(items => items.every(item => item.ok))) {
-        this.castleTypes.map(family => {
+        this.pubCastles.map(family => {
           family.familyCastles.map((castle, i) => {
             if (castle.id == this.castleSelected) {
               this.castleSelected = -1;
@@ -635,6 +656,7 @@ export default {
             }
           });
         });
+        this.stepGenerator("");
       }
 
       //复位选择卡牌项
@@ -646,7 +668,26 @@ export default {
       //城池选择
       if (this.castleSelected < 0) {
         this.castleSelected = id;
-        this.stepGenerator();
+        // this.pubCastles.map((family, familyIndex) => {
+        //   family.familyCastles.map((castle, i) => {
+        //     if (castle.id == this.castleSelected) {
+        //       this.castleSelected = -1;
+        //       let x = { ...family };
+        //       family.familyCastles.splice(i, 1);
+        //       if (family.familyCastles.length === 0) {
+        //         this.pubCastles.splice(familyIndex, 1);
+        //       }
+        //       x.familyCastles = [castle];
+        //       if (this.myCastles.filter(q => q.family === x.family).length < 1)
+        //         return this.myCastles.push(x);
+        //       else
+        //         return this.myCastles.map(p => {
+        //           if (p.family === x.family)
+        //             return p.familyCastles.push(castle);
+        //         });
+        //     }
+        //   });
+        // });
       } else {
         this.snackbar = true;
         this.text = "选定攻击目标后无法改变";
@@ -654,29 +695,32 @@ export default {
     },
     stepGenerator(next) {
       //下一步生成
-      if (next) {
-        this.castleSelected = -1;
-        this.step++;
-      }
-      this.loading = true;
       this.myTroopsNum = 7;
-      this.myTroops.length = 0;
-      let count = 0;
-      this.activeTroops.length = 0;
+      //删除已成功键值
+      this.pubCastles.map(family => {
+        family.familyCastles.map(castle => {
+          if (castle.id === this.castleSelected) {
+            castle.troopsNeeded.map(items => {
+              items.map(item => {
+                if (item.ok) {
+                  delete item.ok;
+                  return false;
+                }
+              });
+            });
+          }
+        });
+      });
+      this.castleSelected = -1;
+      this.step++;
 
-      let generator = setInterval(() => {
-        this.myTroops.push(this.troopTypes[Math.floor(Math.random() * 6)]);
-        count++;
-        if (count >= this.myTroopsNum) {
-          clearInterval(generator);
-          this.loading = false;
-        }
-      }, 200);
+      this.troopsGenerator();
     },
   },
 
-  mounted() {
-    this.pubCastles = [...this.castleTypes];
+  created() {
+    this.pubCastles = _.cloneDeep(this.castleTypes);
+    this.stepGenerator();
   },
 };
 </script>
@@ -723,30 +767,6 @@ export default {
 .custom-loader {
   animation: loader 1s infinite;
   display: flex;
-}
-@-moz-keyframes loader {
-  from {
-    transform: rotate(0);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-@-webkit-keyframes loader {
-  from {
-    transform: rotate(0);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-@-o-keyframes loader {
-  from {
-    transform: rotate(0);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 @keyframes loader {
   from {
