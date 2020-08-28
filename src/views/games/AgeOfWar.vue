@@ -83,6 +83,7 @@
             >
               <v-slide-item>
                 <v-card
+                  @click="castleSelect(castle.id)"
                   :color="
                     castle.id === castleSelected
                       ? castles.color.split(' ')[0]
@@ -94,7 +95,6 @@
                   <v-img src="@/assets/castle-default.png">
                     <div
                       class="castle_info"
-                      @click="castleSelect(castle.id)"
                       :class="castle.id === castleSelected ? 'active' : ''"
                     >
                       <h1 class="ma-1 text-center">{{ castle.score }}</h1>
@@ -246,12 +246,7 @@
     <v-snackbar v-model="snackbar" timeout="2000" top color="warning" outlined>
       {{ text }}
       <template v-slot:action="{ attrs }">
-        <v-btn
-          color="orange lighten-2"
-          icon
-          v-bind="attrs"
-          @click="snackbar = false"
-        >
+        <v-btn color="warning" icon v-bind="attrs" @click="snackbar = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </template>
@@ -573,6 +568,7 @@ export default {
       };
     },
     totalScore() {
+      //计算总分
       let totalScore = 0;
       this.myCastles.map(family => {
         if (family.familyCastles.length === family.total)
@@ -605,8 +601,7 @@ export default {
     },
     placeTroops(row, all) {
       //放置卡牌
-      console.log(this.castleSelected);
-      let targets = row.map(o => ({ ...o })); //深拷贝当前选择行
+      let targets = _.cloneDeep(row);
       let temp = [];
 
       //验证牌库所选牌是否符合条件
@@ -633,30 +628,33 @@ export default {
         tempSort.map(item => {
           this.myTroops.splice(item, 1);
         });
-        this.myTroopsNum -= temp.length - 1;
-        this.troopsGenerator();
-      }
+        this.myTroopsNum -= temp.length;
 
-      //城符合条件后，加入我方城池
-      if (all.every(items => items.every(item => item.ok))) {
-        this.pubCastles.map(family => {
-          family.familyCastles.map((castle, i) => {
-            if (castle.id == this.castleSelected) {
-              this.castleSelected = -1;
-              let x = { ...family };
-              family.familyCastles.splice(i, 1);
-              x.familyCastles = [castle];
-              if (this.myCastles.filter(q => q.family === x.family).length < 1)
-                return this.myCastles.push(x);
-              else
-                return this.myCastles.map(p => {
-                  if (p.family === x.family)
-                    return p.familyCastles.push(castle);
-                });
-            }
+        //城符合条件后，加入我方城池
+        if (all.every(items => items.every(item => item.ok))) {
+          this.deleteOk(this.pubCastles, this.castleSelected);
+          this.pubCastles.map(family => {
+            family.familyCastles.map((castle, i) => {
+              if (castle.id == this.castleSelected) {
+                let x = { ...family };
+                family.familyCastles.splice(i, 1);
+                x.familyCastles = [castle];
+                if (
+                  this.myCastles.filter(q => q.family === x.family).length < 1
+                )
+                  return this.myCastles.push(x);
+                else
+                  return this.myCastles.map(p => {
+                    if (p.family === x.family)
+                      return p.familyCastles.push(castle);
+                  });
+              }
+            });
           });
-        });
-        this.stepGenerator("");
+
+          return this.stepGenerator();
+        }
+        this.troopsGenerator();
       }
 
       //复位选择卡牌项
@@ -666,29 +664,9 @@ export default {
     },
     castleSelect(id) {
       //城池选择
-      if (this.castleSelected < 0) {
+      if (this.castleSelected < 0 && !this.loading) {
         this.castleSelected = id;
-        // this.pubCastles.map((family, familyIndex) => {
-        //   family.familyCastles.map((castle, i) => {
-        //     if (castle.id == this.castleSelected) {
-        //       this.castleSelected = -1;
-        //       let x = { ...family };
-        //       family.familyCastles.splice(i, 1);
-        //       if (family.familyCastles.length === 0) {
-        //         this.pubCastles.splice(familyIndex, 1);
-        //       }
-        //       x.familyCastles = [castle];
-        //       if (this.myCastles.filter(q => q.family === x.family).length < 1)
-        //         return this.myCastles.push(x);
-        //       else
-        //         return this.myCastles.map(p => {
-        //           if (p.family === x.family)
-        //             return p.familyCastles.push(castle);
-        //         });
-        //     }
-        //   });
-        // });
-      } else {
+      } else if (this.castleSelected !== id) {
         this.snackbar = true;
         this.text = "选定攻击目标后无法改变";
       }
@@ -696,10 +674,17 @@ export default {
     stepGenerator(next) {
       //下一步生成
       this.myTroopsNum = 7;
+      this.deleteOk(this.pubCastles, this.castleSelected);
+      this.castleSelected = -1;
+      this.step++;
+
+      this.troopsGenerator();
+    },
+    deleteOk(obj, deleteId) {
       //删除已成功键值
-      this.pubCastles.map(family => {
+      obj.map(family => {
         family.familyCastles.map(castle => {
-          if (castle.id === this.castleSelected) {
+          if (castle.id === deleteId) {
             castle.troopsNeeded.map(items => {
               items.map(item => {
                 if (item.ok) {
@@ -711,10 +696,6 @@ export default {
           }
         });
       });
-      this.castleSelected = -1;
-      this.step++;
-
-      this.troopsGenerator();
     },
   },
 
